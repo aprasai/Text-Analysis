@@ -1,0 +1,121 @@
+%config IPcompleter.greedy = True
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import collections
+
+#Importing the dataset
+dataset = pd.read_csv('XXX.tsv', delimiter = '\t', quoting = 3) #quoting =3 ignores the double quotes
+
+#Libraries to clean the text
+import re
+import nltk
+#nltk.download('stopwords') #execute this line if not downloaded previously
+from nltk.corpus import stopwords
+from nltk.stem.porter import PorterStemmer
+
+#Function to clean the text
+def clean_text(rev):
+    review = re.sub('[^a-zA-Z]',' ',rev) #only keep a-z and A-Z, replace other characters by a space (' ')
+    review = review.lower() #change everything to lower case
+    review = review.split() #split the words and get a list
+
+    #remove stopwords like 'this', 'the', etc. Using the stopwords as defined in the nltk package
+    #using the stemmer to only get the root of the word. For example, 'loved' becomes 'love'
+    ps = PorterStemmer()
+    review = [ps.stem(word) for word in review if not word in set(stopwords.words('english'))]
+    review = ' '.join(review) #joining the word separated by space
+
+    return review
+    
+#Applying the function to clean the text
+%%time
+dataset['Clean Review'] = dataset[['REVIEW COLUMN']].applymap(clean_text)
+
+#Creating bag of words model
+from sklearn.feature_extraction.text import CountVectorizer
+cv = CountVectorizer(max_features = 100) #max_features will take the 'x' most frequent words
+x = pd.DataFrame(cv.fit_transform(dataset['Clean Review']).toarray()) #creates a column for each unique word and for each line 
+                                                                      #checks how many times that word is repeated
+y = dataset[['Liked']]
+
+#Visualizing the most common words
+word_counter = collections.Counter(dataset['Clean Review'])
+lst = word_counter.most_common(5)
+wordCount = pd.DataFrame(lst, columns = ['Word', 'Count'])
+width = .75
+plt.bar(wordCount['Word'],wordCount['Count'],width, alpha =.5)
+plt.show()
+
+#Splitting the data into training and test set
+from sklearn.model_selection import train_test_split
+x_train, x_test, y_train, y_test = train_test_split(x,y,test_size = .2, random_state = 0)
+
+#ANALYSIS USING NAIVE BAYES
+from sklearn.naive_bayes import GaussianNB
+classifierN = GaussianNB()
+classifierN.fit(x_train,y_train)
+
+#predicting the Liked vs Disliked
+y_predN = classifierN.predict(x_test)
+
+#confusion matrix
+from sklearn.metrics import confusion_matrix
+cmN = confusion_matrix(y_test,y_predN)
+cmN = pd.DataFrame(cmN)
+cmN
+
+#Calculating the accuracy of the prediction
+accuracyN = (cmN.iloc[0,0]+cmN.iloc[1,1])/(cmN.sum().sum())
+accuracyN
+
+#ANALYSIS USING RANDOM FOREST CLASSIFICATION
+from sklearn.ensemble import RandomForestClassifier
+classifierRF = RandomForestClassifier(criterion = 'entropy', n_estimators = 10, random_state = 0)
+classifierRF.fit(x_train,y_train)
+
+#predicting the Liked vs Disliked
+y_predRF = classifierRF.predict(x_test)
+
+#confusion matrix
+from sklearn.metrics import confusion_matrix
+cmRF = pd.DataFrame(confusion_matrix(y_test,y_predRF))
+cmRF
+
+#Calculating the accuracy of the prediction
+accuracyRF = (cmRF.iloc[0,0]+cmRF.iloc[1,1])/(cmRF.sum().sum())
+accuracyRF
+
+#ANALYSIS USING CART (CLASSIFICATION AND REGRESSION TREE)
+from sklearn.tree import DecisionTreeClassifier
+classifierDT = DecisionTreeClassifier() #uses the optimized version of CART algorithm
+classifierDT.fit(x_train,y_train)
+
+#predicting the Liked vs Disliked
+y_predDT = classifierDT.predict(x_test)
+
+#confusion matrix
+from sklearn.metrics import confusion_matrix
+cmDT = pd.DataFrame(confusion_matrix(y_test,y_predDT))
+cmDT
+
+#Calculating the accuracy of the prediction
+accuracyDT= (cmDT.iloc[0,0]+cmDT.iloc[1,1])/(cmDT.sum().sum())
+accuracyDT
+
+#ANALYSIS USING LOGISTIC REGRESSION
+from sklearn.linear_model import LogisticRegression
+classifierLR = LogisticRegression()
+classifierLR.fit(x_train,y_train)
+
+#predicting the Liked vs Disliked
+y_predLR = classifierLR.predict(x_test)
+
+#confusion matrix
+from sklearn.metrics import confusion_matrix
+cmLR = pd.DataFrame(confusion_matrix(y_test,y_predLR))
+cmLR
+
+#Calculating the accuracy of the prediction
+accuracyLR = (cmLR.iloc[0,0]+cmLR.iloc[1,1])/(cmLR.sum().sum())
+accuracyLR
